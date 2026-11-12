@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: nexis-trade-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nexis}
+    username: ${DB_USER:nexis}
+    password: ${DB_PASSWORD:nexis}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-before-any-deploy-01}
+    expiration-hours: 24
+  security:
+    bcrypt-strength: 10
+  trading:
+    starting-cash: 100000.00
+  market:
+    enabled: true
+    tick-ms: 5000
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}

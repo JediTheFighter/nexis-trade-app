@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nexis
+      POSTGRES_USER: nexis
+      POSTGRES_PASSWORD: nexis
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexis -d nexis"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/nexis
+      DB_USER: nexis
+      DB_PASSWORD: nexis
+      JWT_SECRET: dev-only-secret-change-before-any-deploy-01
+      SPRING_PROFILES_ACTIVE: local
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    environment:
+      API_UPSTREAM: http://api:8080
+      DNS_RESOLVER: 127.0.0.11
+    ports:
+      - "8088:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

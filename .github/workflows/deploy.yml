@@ -1,0 +1,38 @@
+name: Deploy
+
+# Run this after the stack in infra/terraform exists. The first deploy is
+# manual: terraform apply, then scripts/push-images.sh. Later deploys can use
+# this workflow. It assumes a GitHub Actions OIDC role in variable AWS_ROLE_ARN.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push images
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRY="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com"
+          docker build -t "$REGISTRY/nexis-api:latest" backend
+          docker build -t "$REGISTRY/nexis-web:latest" frontend
+          docker push "$REGISTRY/nexis-api:latest"
+          docker push "$REGISTRY/nexis-web:latest"
+      - name: Roll ECS services
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws ecs update-service --region "$AWS_REGION" --cluster nexis --service nexis-api --force-new-deployment
+          aws ecs update-service --region "$AWS_REGION" --cluster nexis --service nexis-web --force-new-deployment
